@@ -158,6 +158,8 @@ def receive_ping(sock, id, count, timeout=settings.TIMEOUT):
             (packet_number, len_data), data = struct.unpack('ii', data[:info_size]), data[info_size:]
 
             try:
+                if count[address[0]] == 0:
+                    return None, None, None
                 if packet_number != 0 and packet_number <= count[address[0]]:
                     continue
             except KeyError:

@@ -75,3 +75,5 @@ while True:
         files[client_address[0]].close()
         logging.info("receive file from: %s, number of packets: %d" % (client_address[0], counters[client_address[0]]))
         print("receive file from:", client_address[0], "number of packets:", counters[client_address[0]])
+        counters[client_address[0]] = 0
+
