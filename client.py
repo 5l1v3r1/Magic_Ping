@@ -1,18 +1,31 @@
-import struct
 import socket
 import argparse
 import sys
 import magic_ping
 import os
 import settings
+import signal
+import logging
+
+logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s] %(message)s', level=logging.DEBUG, filename=u'client.log')
 
 
+# Обработка CTRL+C
+def signal_handler(signal, frame):
+    print("\nSTOP CLIENT.")
+    logging.info("STOP CLIENT.")
+    exit(0)
+
+
+# Парсер аргументов командной строки
 def create_cmd_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file', required=True, type=argparse.FileType(mode='rb'))
     parser.add_argument('-a', '--address', required=True)
 
     return parser
+
+signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == '__main__':
     p = create_cmd_parser()
@@ -25,27 +38,27 @@ if __name__ == '__main__':
     s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
 
     packet_number = 1
-    file_name = file_name.split('/')[1]
-    data = struct.pack('i', len(file_name)) + file_name.encode()
-    magic_ping.send_ping(s, address, ID, data, packet_number)  # TODO принимать ответ и менять айди, если 1 занят
+    data = file_name.encode()
+    logging.debug("Start sending file to %s" % address)
+    magic_ping.send_ping(s, address, ID, data, packet_number)
 
     print('start sending')
 
-    already_sent = 0
+    already_sent = 0  # размер уже отправленной части
 
     while True:
         data = file.read(settings.DATA_SIZE)
-        #print(data)
         if not data:
             break
 
         already_sent += len(data)
         packet_number += 1
         magic_ping.send_ping(s, address, ID, data, packet_number)
+        logging.info('Отправлено: %.2f %%' % (already_sent / file_size * 100))
         print('Отправлено: %.2f %%' % (already_sent / file_size * 100))
 
     magic_ping.send_ping(s, address, ID, bytes(0), packet_number=0)
+    logging.debug("Packets sent: %d" % packet_number)
     print("send:", packet_number)
-    print("OK!")
     file.close()
     s.close()

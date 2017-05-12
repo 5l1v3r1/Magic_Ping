@@ -12,7 +12,6 @@ ICMP_CODE = 0
 timer = time.time
 
 
-# TODO не отправляются/принимаются большие файлы
 def get_checksum(source):
     """
     Подсчет контрольной суммы по алгоритму RFC1071
@@ -50,14 +49,22 @@ def get_checksum(source):
 
 
 def reply(sock, destination_address, id, packet_number):
+    """
+    Функция отправляющая ECHO_REPLY
+    :param sock: сокет
+    :param destination_address: адрес, куда отправить пакет
+    :param id: ID клиента, от которого пришел запрос
+    :param packet_number: номер пакета
+    """
     sequence = packet_number % settings.MAX_SEQUENCE
     destination_address = socket.gethostbyname(destination_address)
     checksum = 0
 
+    # сначала собираем header с нулевой чексуммой
     header = struct.pack(HEADER_FMT, ICMP_ECHO_REPLY, ICMP_CODE, checksum, id, sequence)
     data = struct.pack('iii', ICMP_ECHO_REPLY, packet_number, 0)
     packet = header + data
-    data += (settings.PACKET_SIZE - len(packet))*'Q'.encode()
+    data += (settings.PACKET_SIZE - len(packet))*'Q'.encode()  # дополняем пакет мусором до 192 байт
     packet = header + data
     checksum = get_checksum(packet)
 
@@ -68,16 +75,24 @@ def reply(sock, destination_address, id, packet_number):
 
 
 def wait_reply(sock, id, packet_number):
+    """
+    Ожидание ответа после запроса
+    :param sock: сокет
+    :param id: ID того, кто должен ответить
+    :param packet_number: номер пакета
+    :return: True - если ответ получен
+    """
     while True:
         select_timeout = select.select([sock], [], [], settings.TIMEOUT)
 
         if not select_timeout[0]:
             print("Wait reply timeout")
-            return
+            return False
 
         packet, address = sock.recvfrom(settings.PACKET_SIZE)
 
         header = packet[20:28]
+
         sock_type, code, checksum, packet_id, sequence = struct.unpack(HEADER_FMT, header)
         (sock_type,), data = struct.unpack('i', packet[28:28+struct.calcsize('i')]), packet[28+struct.calcsize('i'):]
         if sock_type == ICMP_ECHO_REPLY and id == packet_id:
@@ -86,16 +101,7 @@ def wait_reply(sock, id, packet_number):
             if packet_number == received_packet:
                 return True
 
-            return
 
-
-def unpack_data(fmt, data):
-    size = struct.calcsize(fmt)
-    (unpacking,), data = struct.unpack(fmt, data[:size]), data[size:]
-    return data[:unpacking], data[unpacking:]
-
-
-# TODO возвращаемое значение
 def send_ping(sock, destination_address, id, data, packet_number):
     """
     Пингуем по адресу, отправляем данные
@@ -124,11 +130,17 @@ def send_ping(sock, destination_address, id, data, packet_number):
     flag = True
     while flag:
         sock.sendto(packet, (destination_address, settings.PORT))
-        if wait_reply(sock, id, packet_number):
-            flag = False
+        flag = not wait_reply(sock, id, packet_number)
 
 
-def receive_ping(sock, id, timeout=settings.TIMEOUT):
+def receive_ping(sock, id, count, timeout=settings.TIMEOUT):
+    """
+    Прием пинга, получение данных
+    :param sock: сокет
+    :param id: ожидаемый ID
+    :param timeout: таймаут
+    :return: котреж (адрес клиента, номер пакета, данные)
+    """
     while True:
         select_timeout = select.select([sock], [], [], timeout)
 
@@ -144,6 +156,13 @@ def receive_ping(sock, id, timeout=settings.TIMEOUT):
         if packet_id == id and sock_type == ICMP_ECHO_REQUEST:
             info_size = struct.calcsize('ii')
             (packet_number, len_data), data = struct.unpack('ii', data[:info_size]), data[info_size:]
+
+            try:
+                if packet_number != 0 and packet_number <= count[address[0]]:
+                    continue
+            except KeyError:
+                pass
+
             data = data[:len_data]
             reply(sock, address[0], id, packet_number)
             return address, packet_number, data
