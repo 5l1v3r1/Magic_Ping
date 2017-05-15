@@ -24,12 +24,11 @@ logging.info("START SERVER!!!")
 s = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
 s.bind(('', settings.PORT))
 
-files = {}
-counters = {}
+files = {}  # словарь с парами адрес : файл. Для одновременного приема разных файлов от разных клиентов
+counters = {}  # тоже самое для счетчиков пакетов
 
 file = None
 ID = 1
-count = 0  # счетчик принятых пакетов
 while True:
     client_address, packet_number, data = magic_ping.receive_ping(s, ID, counters)
 
@@ -59,10 +58,9 @@ while True:
 
         file = open(file_name, 'wb')
         os.chmod(file_name, 0o777)
-        count = 1
 
         files[client_address[0]] = file
-        counters[client_address[0]] = count
+        counters[client_address[0]] = 1
         continue
 
     if file and packet_number > 1:
