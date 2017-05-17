@@ -5,6 +5,7 @@ import settings
 import datetime
 import signal
 import logging
+import struct
 
 logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s] %(message)s', level=logging.DEBUG, filename=u'server.log')
 
@@ -26,6 +27,7 @@ s.bind(('', settings.PORT))
 
 files = {}  # словарь с парами адрес : файл. Для одновременного приема разных файлов от разных клиентов
 counters = {}  # тоже самое для счетчиков пакетов
+cypher = {}  # клиенты передающие зашифрованные файлы
 
 file = None
 ID = 1
@@ -52,6 +54,13 @@ while True:
             except FileExistsError:  # если такая директория уже существует, то просто создаем следующую
                 pass
 
+        info, data = data[:struct.calcsize('b')], data[struct.calcsize('b'):]
+        (info,) = struct.unpack('b', info)
+        if info:
+            cypher[client_address[0]] = True
+        else:
+            cypher[client_address[0]] = False
+
         file_name = data.decode().split('/')[-1]  # если имя файла было передано с учетом каталогов, избавляемся от них
         logging.debug("Receive new file: %s, from: %s" % (file_name, client_address[0]))
         file_name = tmp + '/' + file_name  # имя файла с учетом директорий, в которых он должен находиться
@@ -66,6 +75,9 @@ while True:
     if file and packet_number > 1:
         counters[client_address[0]] += 1
         logging.debug("%d packet has been received" % counters[client_address[0]])
+        if cypher[client_address[0]]:
+            data = [a ^ b for (a, b) in zip(data, settings.KEY)]
+            data = bytes(data)
         files[client_address[0]].write(data)
         continue
 

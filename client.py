@@ -6,6 +6,7 @@ import os
 import settings
 import signal
 import logging
+import struct
 
 logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s] %(message)s', level=logging.DEBUG, filename=u'client.log')
 
@@ -22,6 +23,7 @@ def create_cmd_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file', required=True, type=argparse.FileType(mode='rb'))
     parser.add_argument('-a', '--address', required=True)
+    parser.add_argument('-c', '--cypher', action='store_const', const=True)
 
     return parser
 
@@ -39,6 +41,10 @@ if __name__ == '__main__':
 
     packet_number = 1
     data = file_name.encode()
+    if arguments.cypher:
+        data = struct.pack('b', 1) + data
+    else:
+        data = struct.pack('b', 0) + data
     logging.debug("Start sending file to %s" % address)
     magic_ping.send_ping(s, address, ID, data, packet_number)
 
@@ -48,6 +54,9 @@ if __name__ == '__main__':
 
     while True:
         data = file.read(settings.DATA_SIZE)
+        if arguments.cypher:
+            data = [a ^ b for (a, b) in zip(data, settings.KEY)]
+            data = bytes(data)
         if not data:
             break
 
