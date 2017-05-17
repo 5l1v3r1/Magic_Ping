@@ -28,6 +28,7 @@ s.bind(('', settings.PORT))
 files = {}  # словарь с парами адрес : файл. Для одновременного приема разных файлов от разных клиентов
 counters = {}  # тоже самое для счетчиков пакетов
 cypher = {}  # клиенты передающие зашифрованные файлы
+file_names = {}  # имена файлов клиентов
 
 file = None
 ID = 1
@@ -64,7 +65,7 @@ while True:
         file_name = data.decode().split('/')[-1]  # если имя файла было передано с учетом каталогов, избавляемся от них
         logging.debug("Receive new file: %s, from: %s" % (file_name, client_address[0]))
         file_name = tmp + '/' + file_name  # имя файла с учетом директорий, в которых он должен находиться
-
+        file_names[client_address[0]] = file_name
         file = open(file_name, 'wb')
         os.chmod(file_name, 0o777)
 
@@ -82,8 +83,15 @@ while True:
         continue
 
     if file and packet_number == 0:
+        if not files.get(client_address[0]):
+            continue
         files[client_address[0]].close()
         logging.info("receive file from: %s, number of packets: %d" % (client_address[0], counters[client_address[0]]))
         print("receive file from:", client_address[0], "number of packets:", counters[client_address[0]])
-        counters[client_address[0]] = 0
+        magic_ping.send_ping(s, client_address[0], ID, settings.md5_checksum(file_names[client_address[0]]).encode(), 0)
+
+        counters.pop(client_address[0])
+        files.pop(client_address[0])
+        cypher.pop(client_address[0])
+        file_names.pop(client_address[0])
 

@@ -1,6 +1,5 @@
 .idea/
 test_files/
-ping*
 README.md
 LICENSE
 python-sudo.sh

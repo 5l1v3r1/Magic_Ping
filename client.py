@@ -70,4 +70,9 @@ if __name__ == '__main__':
     logging.debug("Packets sent: %d" % packet_number)
     print("send:", packet_number)
     file.close()
+
+    client_address, packet_number, checksum = magic_ping.receive_ping(s, ID, {})
+    if checksum and settings.md5_checksum(file_name) != checksum.decode():
+        logging.warning("Файл передался с ошибками!!!")
+        print("Файл передался с ошибками!!!")
     s.close()

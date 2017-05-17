@@ -1,4 +1,16 @@
 import struct
+import hashlib
+
+
+def md5_checksum(file_path):
+    with open(file_path, 'rb') as fh:
+        m = hashlib.md5()
+        while True:
+            data = fh.read(8192)
+            if not data:
+                break
+            m.update(data)
+        return m.hexdigest()
 
 # Это лучше не трогать!
 PACKET_SIZE = 192
