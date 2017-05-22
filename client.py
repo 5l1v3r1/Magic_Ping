@@ -55,7 +55,7 @@ if __name__ == '__main__':
     while True:
         data = file.read(settings.DATA_SIZE)
         if arguments.cypher:
-            data = [a ^ b for (a, b) in zip(data, settings.KEY)]
+            data = [a ^ b for (a, b) in zip(data, settings.KEY)]  # шифруем XORом с ключом
             data = bytes(data)
         if not data:
             break
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     print("send:", packet_number)
     file.close()
 
-    client_address, packet_number, checksum = magic_ping.receive_ping(s, ID, {})
+    client_address, packet_number, checksum = magic_ping.receive_ping(s, ID, {})  # проверяем корректность передачи
     if checksum and settings.md5_checksum(file_name) != checksum.decode():
         logging.warning("Файл передался с ошибками!!!")
         print("Файл передался с ошибками!!!")
