@@ -73,7 +73,7 @@ while True:
         counters[client_address[0]] = 1
         continue
 
-    if file and packet_number > 1:
+    if files.get(client_address[0]) and packet_number > 1:
         counters[client_address[0]] += 1
         logging.debug("%d packet has been received" % counters[client_address[0]])
         if cypher[client_address[0]]:
@@ -82,9 +82,7 @@ while True:
         files[client_address[0]].write(data)
         continue
 
-    if file and packet_number == 0:  # последний пакет имеет нулевой номер
-        if not files.get(client_address[0]):
-            continue
+    if files.get(client_address[0]) and packet_number == 0:  # последний пакет имеет нулевой номер
         files[client_address[0]].close()
         logging.info("receive file from: %s, number of packets: %d" % (client_address[0], counters[client_address[0]]))
         print("receive file from:", client_address[0], "number of packets:", counters[client_address[0]])
